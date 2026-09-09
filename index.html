@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Fahrtenplaner für die Hochzeit: Autos, Plätze, Startpunkte und Zeiten.">
+<title>Hochzeitskonvoi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#FAF6F2;
+  --surface:#FFFFFF;
+  --surface-2:#F2EAE3;
+  --line:#E4D9CF;
+  --line-strong:#CBBAAD;
+  --ink:#241C20;
+  --ink-2:#6C5C61;
+  --ink-3:#8F7F84;
+  --accent:#B0521F;
+  --accent-soft:#F7E4D6;
+  --on-accent:#FFF8F3;
+  --harsi:#9A3A59;
+  --harsi-soft:#F8E1E8;
+  --pesa:#1C6A5E;
+  --pesa-soft:#DCEDE9;
+  --indiv:#565C72;
+  --indiv-soft:#E7E8F0;
+  --warn:#8A5312;
+  --warn-soft:#FBEBD8;
+  --focus:#B0521F;
+  --shadow:0 1px 2px rgba(36,28,32,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#161114;
+    --surface:#1F191D;
+    --surface-2:#2A2227;
+    --line:#3A3036;
+    --line-strong:#514349;
+    --ink:#F3EAE4;
+    --ink-2:#B6A49F;
+    --ink-3:#8E7C79;
+    --accent:#E08A52;
+    --accent-soft:#3A2517;
+    --on-accent:#1B1114;
+    --harsi:#E98CA6;
+    --harsi-soft:#3B1F28;
+    --pesa:#6ECCBA;
+    --pesa-soft:#122F29;
+    --indiv:#AFB4C9;
+    --indiv-soft:#262833;
+    --warn:#E0A257;
+    --warn-soft:#33240F;
+    --focus:#E08A52;
+    --shadow:0 1px 2px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --on-accent:#1B1114;
+  --ground:#161114;
+  --surface:#1F191D;
+  --surface-2:#2A2227;
+  --line:#3A3036;
+  --line-strong:#514349;
+  --ink:#F3EAE4;
+  --ink-2:#B6A49F;
+  --ink-3:#8E7C79;
+  --accent:#E08A52;
+  --accent-soft:#3A2517;
+  --harsi:#E98CA6;
+  --harsi-soft:#3B1F28;
+  --pesa:#6ECCBA;
+  --pesa-soft:#122F29;
+  --indiv:#AFB4C9;
+  --indiv-soft:#262833;
+  --warn:#E0A257;
+  --warn-soft:#33240F;
+  --focus:#E08A52;
+  --shadow:0 1px 2px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1280px;margin:0 auto;padding:28px 24px 96px}
+
+/* ---------- Kopf ---------- */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px}
+h1{
+  font-family:Fraunces,Georgia,serif;
+  font-weight:600;font-size:34px;line-height:1.05;margin:0;
+  letter-spacing:-.01em;text-wrap:balance;
+}
+.sub{margin:6px 0 0;color:var(--ink-2);font-size:14px;max-width:60ch}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);padding:9px 14px;transition:background .12s,border-color .12s}
+button:hover{background:var(--surface-2)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
+button.primary:hover{filter:brightness(1.06);background:var(--accent)}
+button.ghost{border-color:transparent;background:transparent;color:var(--ink-2);padding:9px 10px}
+button.ghost:hover{background:var(--surface-2);color:var(--ink)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ---------- Statusleiste ---------- */
+.bar{
+  margin-top:22px;display:flex;flex-wrap:wrap;align-items:center;gap:0 26px;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:12px 0;
+}
+.stat{display:flex;align-items:baseline;gap:8px;padding-right:26px;border-right:1px solid var(--line)}
+.stat:last-of-type{border-right:0}
+.stat b{font-family:"IBM Plex Mono",monospace;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.stat.flag b,.stat.flag span{color:var(--warn)}
+.savestate{margin-left:auto;font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--pesa)}
+.savestate[data-state="saving"] .dot{background:var(--accent)}
+.savestate[data-state="local"] .dot{background:var(--warn)}
+
+/* ---------- Übersichtstabelle ---------- */
+details.overview{margin-top:20px}
+details.overview summary{
+  cursor:pointer;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-2);padding:6px 0;list-style:none;display:flex;align-items:center;gap:8px;
+}
+details.overview summary::-webkit-details-marker{display:none}
+details.overview summary::before{content:"▸";color:var(--ink-3);transition:transform .15s}
+details.overview[open] summary::before{transform:rotate(90deg)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600;background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--surface-2)}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+td.people{white-space:normal;color:var(--ink-2);min-width:260px}
+
+/* ---------- Autokarten ---------- */
+.grid{margin-top:26px;display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.car{
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:16px 16px 14px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow);
+}
+.car.incomplete{border-color:var(--warn)}
+.car > header{display:flex;align-items:center;gap:10px}
+.idbadge{
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px;
+  background:var(--ink);color:var(--ground);border-radius:6px;padding:5px 8px;
+  font-variant-numeric:tabular-nums;flex:none;
+}
+input,select{
+  font:inherit;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-strong);border-radius:7px;padding:8px 10px;width:100%;
+}
+input::placeholder{color:var(--ink-3)}
+input:hover{border-color:var(--ink-3)}
+input.name{font-weight:600;font-size:15.5px}
+input.name:placeholder-shown{border-color:var(--warn);background:var(--warn-soft)}
+.del{flex:none;border:0;background:transparent;color:var(--ink-3);font-size:17px;line-height:1;padding:6px 8px;border-radius:6px}
+.del:hover{background:var(--warn-soft);color:var(--warn)}
+.del.arm{background:var(--warn);color:var(--surface);font-size:12px;font-weight:600;padding:6px 10px;letter-spacing:.02em}
+.del.arm:hover{background:var(--warn);color:var(--surface);filter:brightness(1.08)}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field > label,.blocklabel{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.segs{display:flex;gap:6px}
+.segs label{
+  flex:1;text-align:center;font-size:13px;padding:7px 4px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--line);color:var(--ink-2);background:var(--surface);transition:.12s;
+}
+.segs input{position:absolute;opacity:0;width:0;height:0}
+.segs label:hover{border-color:var(--line-strong)}
+.segs input:focus-visible + span{text-decoration:underline}
+.segs label.on[data-p="harsi"]{background:var(--harsi-soft);border-color:var(--harsi);color:var(--harsi);font-weight:600}
+.segs label.on[data-p="pesa"]{background:var(--pesa-soft);border-color:var(--pesa);color:var(--pesa);font-weight:600}
+.segs label.on[data-p="indiv"]{background:var(--indiv-soft);border-color:var(--indiv);color:var(--indiv);font-weight:600}
+
+.seats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.seats li{display:flex;align-items:center;gap:9px}
+.seats .n{
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-3);
+  width:18px;flex:none;text-align:right;
+}
+.seats li.filled .n{color:var(--accent);font-weight:600}
+
+.car > footer{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border-top:1px solid var(--line);padding-top:10px;font-size:12.5px;color:var(--ink-3);
+}
+.occ{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.chip{font-size:11.5px;padding:2px 8px;border-radius:20px;background:var(--warn-soft);color:var(--warn);font-weight:600}
+
+.empty{margin-top:40px;text-align:center;color:var(--ink-2)}
+
+/* ---------- Export-Fallback ---------- */
+dialog{
+  border:1px solid var(--line-strong);border-radius:12px;background:var(--surface);color:var(--ink);
+  padding:18px;max-width:min(680px,92vw);width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25);
+}
+dialog::backdrop{background:rgba(20,14,17,.45)}
+dialog h2{font-family:Fraunces,Georgia,serif;font-size:20px;margin:0 0 4px}
+dialog p{margin:0 0 12px;color:var(--ink-2);font-size:13.5px}
+textarea{
+  width:100%;height:300px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;
+  border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:10px;resize:vertical;
+}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+
+@media (max-width:520px){
+  h1{font-size:27px}
+  .wrap{padding:20px 14px 80px}
+  .stat{padding-right:16px}
+  .bar{gap:0 16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Hochzeitskonvoi</h1>
+      <p class="sub">Fahrten zum Abholen der Gäste. Jedes Auto bekommt eine fortlaufende Nummer, vier Plätze und einen Startpunkt. Änderungen werden automatisch gespeichert.</p>
+    </div>
+    <div class="actions">
+      <button id="exportCsv">CSV exportieren</button>
+      <button id="exportTxt">Liste als Text</button>
+      <button id="addCar" class="primary">+ Auto hinzufügen</button>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="stat"><b id="sCars">0</b><span>Autos</span></div>
+    <div class="stat"><b id="sTaken">0</b><span>Gäste eingeteilt</span></div>
+    <div class="stat"><b id="sFree">0</b><span>freie Plätze</span></div>
+    <div class="stat flag" id="sFlagWrap" hidden><b id="sFlag">0</b><span>unvollständig</span></div>
+    <div class="savestate" id="saveState" data-state="idle"><span class="dot"></span><span id="saveText">Bereit</span></div>
+  </div>
+
+  <details class="overview" id="overview">
+    <summary>Gesamtübersicht</summary>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Nr.</th><th>Bezeichnung</th><th>Startpunkt</th><th>Abfahrt</th><th>Ankunft</th><th>Adresse</th><th>Plätze</th><th>Gäste</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="empty" hidden>Noch kein Auto angelegt. Oben rechts auf „Auto hinzufügen“.</p>
+</div>
+
+<dialog id="exportDlg">
+  <h2 id="dlgTitle">Export</h2>
+  <p>Der Download ist hier nicht verfügbar — Text markieren und kopieren.</p>
+  <textarea id="dlgText" readonly></textarea>
+  <div class="dialog-actions">
+    <button id="dlgCopy">Kopieren</button>
+    <button id="dlgClose" class="primary">Schließen</button>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  "use strict";
+
+  var SEATS = 4;
+  var POINTS = [
+    {key:"harsi", label:"Harsi tun"},
+    {key:"pesa",  label:"Pesa"},
+    {key:"indiv", label:"Individuell"}
+  ];
+  var pointLabel = {harsi:"Harsi tun", pesa:"Pesa", indiv:"Individuell"};
+
+  var model = new Map();   // id (string) -> data
+  var cards = new Map();   // id -> {root, f:{...}}
+  var pending = new Map(); // id -> timeout
+  var store = null;        // storage adapter
+  var bootstrapped = false;
+
+  var $ = function(s){ return document.querySelector(s); };
+  var grid = $("#grid"), tbody = $("#tbody"), emptyMsg = $("#empty");
+  var saveState = $("#saveState"), saveText = $("#saveText");
+
+  function pad(n){ return String(n).padStart(3,"0"); }
+  function num(id){ return parseInt(id,10) || 0; }
+  function blank(n){
+    return { nr:n, name:"G-Class", point:"harsi", address:"", start:"", arrival:"", driver:"",
+             seats:["","","",""] };
+  }
+  function normalize(d,id){
+    d = d || {};
+    var s = Array.isArray(d.seats) ? d.seats.slice(0,SEATS) : [];
+    while(s.length < SEATS) s.push("");
+    return { nr: d.nr || num(id), name: d.name || "", point: pointLabel[d.point] ? d.point : "harsi",
+             address: d.address || "", start: d.start || "", arrival: d.arrival || "",
+             driver: d.driver || "", seats: s.map(function(x){ return x || ""; }) };
+  }
+  function filled(d){ return d.seats.filter(function(x){ return x.trim(); }).length; }
+  function incomplete(d){ return !d.name.trim() || (d.point === "indiv" && !d.address.trim()); }
+
+  function setSave(state, text){
+    saveState.setAttribute("data-state", state);
+    saveText.textContent = text;
+  }
+
+  /* ---------------- Speicher ---------------- */
+
+  function localAdapter(){
+    var KEY = "hochzeitskonvoi.v1";
+    function read(){
+      try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch(e){ return {}; }
+    }
+    function write(o){ try { localStorage.setItem(KEY, JSON.stringify(o)); } catch(e){} }
+    var cache = read();
+    if(!cache.cars) cache.cars = {};
+    var listener = null;
+    function push(){ if(listener) listener(toList()); }
+    function toList(){
+      return Object.keys(cache.cars).sort().map(function(id){ return {id:id, data:cache.cars[id]}; });
+    }
+    return {
+      kind:"local",
+      subscribe:function(fn){ listener = fn; push(); },
+      save:function(id,d){ cache.cars[id] = d; write(cache); return Promise.resolve(); },
+      remove:function(id){ delete cache.cars[id]; write(cache); push(); return Promise.resolve(); },
+      nextNr:function(){
+        var n = cache.nextNr || 1;
+        Object.keys(cache.cars).forEach(function(id){ n = Math.max(n, num(id)+1); });
+        cache.nextNr = n + 1; write(cache);
+        return Promise.resolve(n);
+      },
+      afterCreate:push
+    };
+  }
+
+  function dbAdapter(db){
+    var meta = db.doc("meta/state");
+    return {
+      kind:"db",
+      subscribe:function(fn){
+        db.collection("cars").onSnapshot(function(snap){
+          fn(snap.docs.map(function(doc){ return {id:doc.id, data:doc.data()}; }));
+        }, function(err){
+          setSave("local","Verbindung unterbrochen (" + err.code + ")");
+        });
+      },
+      save:function(id,d){ return db.doc("cars/"+id).set(d); },
+      remove:function(id){ return db.doc("cars/"+id).delete(); },
+      nextNr:function(){
+        return meta.get().then(function(s){
+          var n = (s.exists && s.data().nextNr) || 1;
+          model.forEach(function(v,id){ n = Math.max(n, num(id)+1); });
+          return meta.set({nextNr:n+1}).then(function(){ return n; }, function(){ return n; });
+        }, function(){
+          var n = 1;
+          model.forEach(function(v,id){ n = Math.max(n, num(id)+1); });
+          return n;
+        });
+      },
+      afterCreate:function(){}
+    };
+  }
+
+  function queueSave(id){
+    if(pending.has(id)) clearTimeout(pending.get(id));
+    setSave("saving","Speichern …");
+    pending.set(id, setTimeout(function(){
+      pending.delete(id);
+      var d = model.get(id);
+      if(!d || !store) return;
+      Promise.resolve(store.save(id, d)).then(function(){
+        if(pending.size === 0) setSave(store.kind === "local" ? "local" : "idle",
+          store.kind === "local" ? "Auf diesem Gerät gespeichert" : "Alle Änderungen gespeichert");
+      }, function(err){
+        setSave("local","Nicht gespeichert: " + (err && err.code ? err.code : "Fehler"));
+      });
+    }, 500));
+  }
+
+  /* ---------------- Karten ---------------- */
+
+  function makeCard(id){
+    var art = document.createElement("article");
+    art.className = "car";
+    art.id = "car-" + id;
+
+    var head = document.createElement("header");
+    var badge = document.createElement("span");
+    badge.className = "idbadge";
+    var name = document.createElement("input");
+    name.className = "name"; name.placeholder = "Bezeichnung (Pflicht)";
+    name.setAttribute("aria-label","Bezeichnung des Autos");
+    var del = document.createElement("button");
+    del.className = "del"; del.type = "button"; del.title = "Auto entfernen";
+    del.setAttribute("aria-label","Auto entfernen"); del.textContent = "✕";
+    head.append(badge, name, del);
+
+    var segWrap = document.createElement("div");
+    segWrap.className = "field";
+    var segLbl = document.createElement("span");
+    segLbl.className = "blocklabel"; segLbl.textContent = "Startpunkt";
+    var segs = document.createElement("div");
+    segs.className = "segs"; segs.setAttribute("role","radiogroup");
+    var segLabels = {};
+    POINTS.forEach(function(p){
+      var l = document.createElement("label");
+      l.setAttribute("data-p", p.key);
+      var r = document.createElement("input");
+      r.type = "radio"; r.name = "point-" + id; r.value = p.key;
+      var s = document.createElement("span"); s.textContent = p.label;
+      l.append(r, s); segs.appendChild(l); segLabels[p.key] = {label:l, radio:r};
+    });
+    segWrap.append(segLbl, segs);
+
+    var addrWrap = document.createElement("div");
+    addrWrap.className = "field";
+    var addrLbl = document.createElement("label");
+    addrLbl.textContent = "Adresse Start";
+    var address = document.createElement("input");
+    address.placeholder = "Straße, Nr., Ort";
+    addrLbl.setAttribute("for","addr-"+id); address.id = "addr-"+id;
+    addrWrap.append(addrLbl, address);
+
+    var times = document.createElement("div");
+    times.className = "row2";
+    function timeField(labelText, key){
+      var f = document.createElement("div"); f.className = "field";
+      var l = document.createElement("label"); l.textContent = labelText; l.setAttribute("for", key+"-"+id);
+      var i = document.createElement("input"); i.type = "time"; i.id = key+"-"+id;
+      f.append(l,i); return {wrap:f, input:i};
+    }
+    var startF = timeField("Abfahrt","start");
+    var arrF = timeField("Ankunft","arr");
+    times.append(startF.wrap, arrF.wrap);
+
+    var drvWrap = document.createElement("div");
+    drvWrap.className = "field";
+    var drvLbl = document.createElement("label"); drvLbl.textContent = "Fahrer"; drvLbl.setAttribute("for","drv-"+id);
+    var driver = document.createElement("input"); driver.placeholder = "optional"; driver.id = "drv-"+id;
+    drvWrap.append(drvLbl, driver);
+
+    var seatWrap = document.createElement("div");
+    seatWrap.className = "field";
+    var seatLbl = document.createElement("span");
+    seatLbl.className = "blocklabel"; seatLbl.textContent = "Gäste (4 Plätze)";
+    var ol = document.createElement("ol"); ol.className = "seats";
+    var seatInputs = [];
+    for(var i = 0; i < SEATS; i++){
+      var li = document.createElement("li");
+      var n = document.createElement("span"); n.className = "n"; n.textContent = (i+1) + ".";
+      var inp = document.createElement("input");
+      inp.placeholder = "Name"; inp.setAttribute("aria-label","Gast " + (i+1));
+      li.append(n, inp); ol.appendChild(li); seatInputs.push(inp);
+    }
+    seatWrap.append(seatLbl, ol);
+
+    var foot = document.createElement("footer");
+    var occ = document.createElement("span"); occ.className = "occ";
+    var flag = document.createElement("span"); flag.className = "chip"; flag.hidden = true;
+    foot.append(occ, flag);
+
+    art.append(head, segWrap, addrWrap, times, drvWrap, seatWrap, foot);
+
+    var refs = {root:art, badge:badge, name:name, address:address, start:startF.input,
+                arrival:arrF.input, driver:driver, seats:seatInputs, segs:segLabels,
+                occ:occ, flag:flag};
+
+    function edit(fn){
+      var d = model.get(id); if(!d) return;
+      fn(d); model.set(id, d);
+      queueSave(id); paint(id); renderSummary(); renderTable();
+    }
+    name.addEventListener("input", function(){ edit(function(d){ d.name = name.value; }); });
+    address.addEventListener("input", function(){ edit(function(d){ d.address = address.value; }); });
+    driver.addEventListener("input", function(){ edit(function(d){ d.driver = driver.value; }); });
+    startF.input.addEventListener("input", function(){ edit(function(d){ d.start = startF.input.value; }); });
+    arrF.input.addEventListener("input", function(){ edit(function(d){ d.arrival = arrF.input.value; }); });
+    seatInputs.forEach(function(inp, idx){
+      inp.addEventListener("input", function(){ edit(function(d){ d.seats[idx] = inp.value; }); });
+    });
+    POINTS.forEach(function(p){
+      segLabels[p.key].radio.addEventListener("change", function(){
+        edit(function(d){ d.point = p.key; });
+      });
+    });
+    var armTimer = null;
+    function disarm(){
+      if(armTimer){ clearTimeout(armTimer); armTimer = null; }
+      del.classList.remove("arm");
+      del.textContent = "✕";
+      del.title = "Auto entfernen";
+    }
+    del.addEventListener("click", function(){
+      if(!del.classList.contains("arm")){
+        del.classList.add("arm");
+        del.textContent = "Wirklich löschen?";
+        del.title = "Nochmal klicken zum Entfernen";
+        armTimer = setTimeout(disarm, 5000);
+        return;
+      }
+      disarm();
+      model.delete(id);
+      if(pending.has(id)){ clearTimeout(pending.get(id)); pending.delete(id); }
+      art.remove(); cards.delete(id);
+      renderSummary(); renderTable();
+      if(store) store.remove(id);
+    });
+
+    cards.set(id, refs);
+    grid.appendChild(art);
+    return refs;
+  }
+
+  function paint(id){
+    var r = cards.get(id), d = model.get(id);
+    if(!r || !d) return;
+    r.badge.textContent = pad(d.nr);
+    setVal(r.name, d.name);
+    setVal(r.address, d.address);
+    setVal(r.driver, d.driver);
+    setVal(r.start, d.start);
+    setVal(r.arrival, d.arrival);
+    d.seats.forEach(function(v,i){
+      setVal(r.seats[i], v);
+      r.seats[i].parentNode.classList.toggle("filled", !!v.trim());
+    });
+    POINTS.forEach(function(p){
+      var on = d.point === p.key;
+      r.segs[p.key].label.classList.toggle("on", on);
+      r.segs[p.key].radio.checked = on;
+    });
+    var f = filled(d);
+    r.occ.textContent = f + " / " + SEATS + " Plätze belegt";
+    var bad = incomplete(d);
+    r.flag.hidden = !bad;
+    r.flag.textContent = !d.name.trim() ? "Bezeichnung fehlt" : "Adresse fehlt";
+    r.root.classList.toggle("incomplete", bad);
+  }
+
+  function setVal(el, v){
+    if(el === document.activeElement) return;
+    if(el.value !== v) el.value = v;
+  }
+
+  function order(){
+    Array.from(model.keys()).sort(function(a,b){ return num(a) - num(b); })
+      .forEach(function(id){
+        var r = cards.get(id);
+        if(r) grid.appendChild(r.root);
+      });
+  }
+
+  function renderSummary(){
+    var cars = model.size, taken = 0, bad = 0;
+    model.forEach(function(d){ taken += filled(d); if(incomplete(d)) bad++; });
+    $("#sCars").textContent = cars;
+    $("#sTaken").textContent = taken;
+    $("#sFree").textContent = cars * SEATS - taken;
+    $("#sFlag").textContent = bad;
+    $("#sFlagWrap").hidden = bad === 0;
+    emptyMsg.hidden = cars > 0;
+  }
+
+  function sortedCars(){
+    return Array.from(model.entries()).map(function(e){ return {id:e[0], d:e[1]}; })
+      .sort(function(a,b){
+        var x = a.d.start || "99:99", y = b.d.start || "99:99";
+        if(x !== y) return x < y ? -1 : 1;
+        return a.d.nr - b.d.nr;
+      });
+  }
+
+  function renderTable(){
+    tbody.textContent = "";
+    sortedCars().forEach(function(c){
+      var d = c.d;
+      var tr = document.createElement("tr");
+      function td(text, cls){
+        var el = document.createElement("td");
+        if(cls) el.className = cls;
+        el.textContent = text;
+        tr.appendChild(el);
+      }
+      td(pad(d.nr), "num");
+      td(d.name || "—");
+      td(pointLabel[d.point]);
+      td(d.start || "—", "num");
+      td(d.arrival || "—", "num");
+      td(d.address || "—");
+      td(filled(d) + "/" + SEATS, "num");
+      td(d.seats.filter(function(s){ return s.trim(); }).join(", ") || "—", "people");
+      tr.addEventListener("click", function(){
+        var r = cards.get(c.id);
+        if(r){ r.root.scrollIntoView({behavior:"smooth", block:"center"}); r.name.focus(); }
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function applyList(list){
+    var seen = new Set();
+    list.forEach(function(item){
+      var id = item.id;
+      seen.add(id);
+      if(pending.has(id)) return;           // lokale Eingabe hat Vorrang
+      model.set(id, normalize(item.data, id));
+      if(!cards.has(id)) makeCard(id);
+      paint(id);
+    });
+    Array.from(cards.keys()).forEach(function(id){
+      if(!seen.has(id) && !pending.has(id)){
+        cards.get(id).root.remove(); cards.delete(id); model.delete(id);
+      }
+    });
+    order(); renderSummary(); renderTable();
+
+    if(!bootstrapped){
+      bootstrapped = true;
+      if(model.size === 0) addCar();
+      else $("#overview").open = model.size > 3;
+    }
+  }
+
+  function addCar(){
+    if(!store) return;
+    Promise.resolve(store.nextNr()).then(function(n){
+      var id = pad(n), d = blank(n);
+      model.set(id, d);
+      makeCard(id); paint(id); order(); renderSummary(); renderTable();
+      queueSave(id);
+      if(store.afterCreate) store.afterCreate();
+      var r = cards.get(id);
+      if(r){ r.root.scrollIntoView({behavior:"smooth", block:"nearest"}); r.name.focus(); r.name.select(); }
+    });
+  }
+
+  /* ---------------- Export ---------------- */
+
+  function csv(){
+    var head = ["Nr","Bezeichnung","Startpunkt","Adresse Start","Abfahrt","Ankunft","Fahrer",
+                "Gast 1","Gast 2","Gast 3","Gast 4","Belegt"];
+    var rows = [head];
+    sortedCars().forEach(function(c){
+      var d = c.d;
+      rows.push([pad(d.nr), d.name, pointLabel[d.point], d.address, d.start, d.arrival, d.driver]
+        .concat(d.seats).concat([filled(d) + "/" + SEATS]));
+    });
+    return "﻿" + rows.map(function(r){
+      return r.map(function(v){
+        v = String(v == null ? "" : v);
+        return /[";\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+      }).join(";");
+    }).join("\r\n");
+  }
+
+  function txt(){
+    var out = ["HOCHZEITSKONVOI — Abholplan", ""];
+    sortedCars().forEach(function(c){
+      var d = c.d;
+      out.push("Auto " + pad(d.nr) + " · " + (d.name || "ohne Bezeichnung"));
+      out.push("  Start: " + pointLabel[d.point] + (d.address ? " — " + d.address : ""));
+      out.push("  Abfahrt: " + (d.start || "offen") + "   Ankunft: " + (d.arrival || "offen"));
+      if(d.driver) out.push("  Fahrer: " + d.driver);
+      d.seats.forEach(function(s,i){ out.push("  " + (i+1) + ". " + (s.trim() || "frei")); });
+      out.push("");
+    });
+    var cars = model.size, taken = 0;
+    model.forEach(function(d){ taken += filled(d); });
+    out.push(cars + " Autos · " + taken + " Gäste · " + (cars*SEATS - taken) + " freie Plätze");
+    return out.join("\n");
+  }
+
+  var dlg = $("#exportDlg");
+
+  function browserDownload(filename, text){
+    // Funktioniert auf einer normalen Website (z. B. GitHub Pages), nicht im Artifact-Frame.
+    try {
+      var type = /\.csv$/.test(filename) ? "text/csv;charset=utf-8" : "text/plain;charset=utf-8";
+      var url = URL.createObjectURL(new Blob([text], {type:type}));
+      var a = document.createElement("a");
+      a.href = url; a.download = filename; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      return true;
+    } catch(e){ return false; }
+  }
+
+  function offer(filename, text, title){
+    claudeUse("downloads").then(function(dl){
+      if(!dl) throw 0;
+      return dl.save({filename:filename, data:text});
+    }).catch(function(err){
+      if(err && err.code === "declined") return;
+      if(!window.claude && browserDownload(filename, text)) return;
+      $("#dlgTitle").textContent = title;
+      $("#dlgText").value = text;
+      if(typeof dlg.showModal === "function") dlg.showModal();
+    });
+  }
+  $("#dlgClose").addEventListener("click", function(){ dlg.close(); });
+  $("#dlgCopy").addEventListener("click", function(){
+    var t = $("#dlgText"); t.select();
+    try { navigator.clipboard.writeText(t.value); } catch(e){ try { document.execCommand("copy"); } catch(e2){} }
+    $("#dlgCopy").textContent = "Kopiert";
+    setTimeout(function(){ $("#dlgCopy").textContent = "Kopieren"; }, 1500);
+  });
+
+  $("#exportCsv").addEventListener("click", function(){ offer("hochzeitskonvoi.csv", csv(), "CSV-Export"); });
+  $("#exportTxt").addEventListener("click", function(){ offer("hochzeitskonvoi.txt", txt(), "Textliste"); });
+  $("#addCar").addEventListener("click", addCar);
+
+  /* ---------------- Start ---------------- */
+
+  function claudeUse(name){
+    try {
+      if(window.claude && typeof window.claude.use === "function") return window.claude.use(name);
+    } catch(e){}
+    return Promise.resolve(null);
+  }
+
+  setSave("saving","Lade …");
+  claudeUse("db").then(function(db){
+    if(db){
+      store = dbAdapter(db);
+      setSave("idle","Gespeichert — auf allen Geräten");
+    } else {
+      store = localAdapter();
+      setSave("local","Auf diesem Gerät gespeichert");
+    }
+    store.subscribe(applyList);
+  }, function(){
+    store = localAdapter();
+    setSave("local","Auf diesem Gerät gespeichert");
+    store.subscribe(applyList);
+  });
+})();
+</script>
+</body>
+</html>
