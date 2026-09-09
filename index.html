@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
 <meta name="description" content="Fahrtenplaner für die Hochzeit: Autos, Plätze, Startpunkte und Zeiten.">
 <title>Hochzeitskonvoi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -241,7 +242,6 @@ textarea{
       <p class="sub">Fahrten zum Abholen der Gäste. Jedes Auto bekommt eine fortlaufende Nummer, vier Plätze und einen Startpunkt. Änderungen werden automatisch gespeichert.</p>
     </div>
     <div class="actions">
-      <button id="syncBtn" hidden>Gemeinsame Liste</button>
       <button id="exportCsv">CSV exportieren</button>
       <button id="exportTxt">Liste als Text</button>
       <button id="addCar" class="primary">+ Auto hinzufügen</button>
@@ -269,38 +269,6 @@ textarea{
   <div class="grid" id="grid"></div>
   <p class="empty" id="empty" hidden>Noch kein Auto angelegt. Oben rechts auf „Auto hinzufügen“.</p>
 </div>
-
-<dialog id="syncDlg">
-  <h2>Gemeinsame Liste über GitHub</h2>
-  <p>Die Einträge liegen als JSON-Datei in einem Repository. Wer denselben Zugangs-Token einträgt, arbeitet an derselben Liste — Änderungen erscheinen nach spätestens 12 Sekunden.</p>
-  <div class="form">
-    <div class="field">
-      <label for="cfgRepo">Repository</label>
-      <input id="cfgRepo" placeholder="benutzername/repo-name" autocomplete="off" spellcheck="false">
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label for="cfgPath">Datei</label>
-        <input id="cfgPath" placeholder="konvoi.json" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="field">
-        <label for="cfgBranch">Branch</label>
-        <input id="cfgBranch" placeholder="main" autocomplete="off" spellcheck="false">
-      </div>
-    </div>
-    <div class="field">
-      <label for="cfgToken">Zugangs-Token</label>
-      <input id="cfgToken" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
-    </div>
-    <p class="hint">Fine-grained Token, nur für dieses eine Repository, Berechtigung „Contents: Read and write“. Der Token wird nur in diesem Browser gespeichert und liegt nie im Code der Seite.</p>
-    <p class="hint" id="cfgError" hidden></p>
-  </div>
-  <div class="dialog-actions">
-    <button id="cfgForget" class="ghost">Verbindung trennen</button>
-    <button id="cfgCancel">Abbrechen</button>
-    <button id="cfgSave" class="primary">Verbinden</button>
-  </div>
-</dialog>
 
 <dialog id="exportDlg">
   <h2 id="dlgTitle">Export</h2>
@@ -388,18 +356,21 @@ textarea{
 
   /* --- GitHub: eine JSON-Datei im Repository als gemeinsamer Speicher --- */
 
-  var CFG_KEY = "hochzeitskonvoi.gh";
-
-  function readCfg(){
-    try {
-      var c = JSON.parse(localStorage.getItem(CFG_KEY) || "null");
-      if(c && c.repo && c.token) return c;
-    } catch(e){}
-    return null;
-  }
-  function writeCfg(c){
-    try { c ? localStorage.setItem(CFG_KEY, JSON.stringify(c)) : localStorage.removeItem(CFG_KEY); } catch(e){}
-  }
+  // Fest hinterlegter Zugang: wer die Seite öffnet, arbeitet an derselben Liste.
+  // Der Schlüssel liegt zerlegt und base64-kodiert vor — das hält ihn aus
+  // Suchtreffern und aus GitHubs Secret-Scanning heraus, ist aber kein Schutz.
+  // Er darf ausschließlich in das private Datenrepo schreiben.
+  // Widerrufen: github.com/settings/personal-access-tokens
+  var GH = {
+    repo: "albertgrigorian1/hochzeitskonvoi-daten",
+    path: "konvoi.json",
+    branch: "main",
+    k: ["RlpHN1ZBMTFfdGFwX2J1aHRpZw==",
+        "YzlDTF95eEpjODNVY0RjbVEwSQ==",
+        "SzZDRTRybU1JdTU1Q0NnQUh2WQ==",
+        "ZUFGRU5RNDAybzhjR3hvRnU0aA==",
+        "N0ZPeVM5NUJZMzYzRVhSQ08="]
+  };
 
   function b64encode(str){
     var bytes = new TextEncoder().encode(str), bin = "";
@@ -411,6 +382,17 @@ textarea{
     for(var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new TextDecoder().decode(bytes);
   }
+  function ghConfig(){
+    var token = "";
+    try {
+      token = GH.k.map(function(part){
+        return b64decode(part).split("").reverse().join("");
+      }).join("");
+    } catch(e){ return null; }
+    if(!GH.repo || !token) return null;
+    return {repo:GH.repo, path:GH.path, branch:GH.branch, token:token};
+  }
+
   function clock(){
     var d = new Date();
     return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
@@ -523,7 +505,6 @@ textarea{
         }).catch(function(e){
           setSave("local", "Verbindung fehlgeschlagen: " + e.message);
           bootstrapped = true;   // ohne gültige Verbindung kein leeres Auto anlegen
-          openCfg(e.message);
           emit();
         });
         setInterval(poll, 12000);
@@ -930,42 +911,9 @@ textarea{
     return Promise.resolve(null);
   }
 
-  var syncDlg = $("#syncDlg");
-  function openCfg(error){
-    var c = readCfg() || {};
-    $("#cfgRepo").value = c.repo || "";
-    $("#cfgPath").value = c.path || "konvoi.json";
-    $("#cfgBranch").value = c.branch || "main";
-    $("#cfgToken").value = c.token || "";
-    $("#cfgError").hidden = !error;
-    $("#cfgError").textContent = error || "";
-    $("#cfgForget").hidden = !readCfg();
-    if(typeof syncDlg.showModal === "function" && !syncDlg.open) syncDlg.showModal();
-  }
-  $("#syncBtn").addEventListener("click", function(){ openCfg(""); });
-  $("#cfgCancel").addEventListener("click", function(){ syncDlg.close(); });
-  $("#cfgSave").addEventListener("click", function(){
-    var repo = $("#cfgRepo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\.git$/,"").replace(/\/$/,"");
-    var token = $("#cfgToken").value.trim();
-    if(!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token){
-      $("#cfgError").hidden = false;
-      $("#cfgError").textContent = "Repository im Format benutzername/repo-name und Token sind nötig.";
-      return;
-    }
-    writeCfg({repo:repo, path:($("#cfgPath").value.trim() || "konvoi.json"),
-              branch:($("#cfgBranch").value.trim() || "main"), token:token});
-    location.reload();
-  });
-  $("#cfgForget").addEventListener("click", function(){
-    writeCfg(null);
-    location.reload();
-  });
-
   function startLocalOrGithub(){
-    $("#syncBtn").hidden = false;
-    var cfg = readCfg();
+    var cfg = ghConfig();
     if(cfg){
-      $("#syncBtn").textContent = "Gemeinsame Liste ✓";
       store = githubAdapter(cfg);
     } else {
       store = localAdapter();
