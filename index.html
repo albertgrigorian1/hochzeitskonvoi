@@ -214,6 +214,10 @@ dialog{
 dialog::backdrop{background:rgba(20,14,17,.45)}
 dialog h2{font-family:Fraunces,Georgia,serif;font-size:20px;margin:0 0 4px}
 dialog p{margin:0 0 12px;color:var(--ink-2);font-size:13.5px}
+dialog .form{display:flex;flex-direction:column;gap:12px}
+dialog .hint{margin:0;font-size:12.5px;color:var(--ink-3);line-height:1.45}
+dialog #cfgError{color:var(--warn);font-weight:500}
+.savestate[data-state="sync"] .dot{background:var(--pesa)}
 textarea{
   width:100%;height:300px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;
   border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:10px;resize:vertical;
@@ -237,6 +241,7 @@ textarea{
       <p class="sub">Fahrten zum Abholen der Gäste. Jedes Auto bekommt eine fortlaufende Nummer, vier Plätze und einen Startpunkt. Änderungen werden automatisch gespeichert.</p>
     </div>
     <div class="actions">
+      <button id="syncBtn" hidden>Gemeinsame Liste</button>
       <button id="exportCsv">CSV exportieren</button>
       <button id="exportTxt">Liste als Text</button>
       <button id="addCar" class="primary">+ Auto hinzufügen</button>
@@ -264,6 +269,38 @@ textarea{
   <div class="grid" id="grid"></div>
   <p class="empty" id="empty" hidden>Noch kein Auto angelegt. Oben rechts auf „Auto hinzufügen“.</p>
 </div>
+
+<dialog id="syncDlg">
+  <h2>Gemeinsame Liste über GitHub</h2>
+  <p>Die Einträge liegen als JSON-Datei in einem Repository. Wer denselben Zugangs-Token einträgt, arbeitet an derselben Liste — Änderungen erscheinen nach spätestens 12 Sekunden.</p>
+  <div class="form">
+    <div class="field">
+      <label for="cfgRepo">Repository</label>
+      <input id="cfgRepo" placeholder="benutzername/repo-name" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="cfgPath">Datei</label>
+        <input id="cfgPath" placeholder="konvoi.json" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="cfgBranch">Branch</label>
+        <input id="cfgBranch" placeholder="main" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="field">
+      <label for="cfgToken">Zugangs-Token</label>
+      <input id="cfgToken" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+    </div>
+    <p class="hint">Fine-grained Token, nur für dieses eine Repository, Berechtigung „Contents: Read and write“. Der Token wird nur in diesem Browser gespeichert und liegt nie im Code der Seite.</p>
+    <p class="hint" id="cfgError" hidden></p>
+  </div>
+  <div class="dialog-actions">
+    <button id="cfgForget" class="ghost">Verbindung trennen</button>
+    <button id="cfgCancel">Abbrechen</button>
+    <button id="cfgSave" class="primary">Verbinden</button>
+  </div>
+</dialog>
 
 <dialog id="exportDlg">
   <h2 id="dlgTitle">Export</h2>
@@ -349,6 +386,164 @@ textarea{
     };
   }
 
+  /* --- GitHub: eine JSON-Datei im Repository als gemeinsamer Speicher --- */
+
+  var CFG_KEY = "hochzeitskonvoi.gh";
+
+  function readCfg(){
+    try {
+      var c = JSON.parse(localStorage.getItem(CFG_KEY) || "null");
+      if(c && c.repo && c.token) return c;
+    } catch(e){}
+    return null;
+  }
+  function writeCfg(c){
+    try { c ? localStorage.setItem(CFG_KEY, JSON.stringify(c)) : localStorage.removeItem(CFG_KEY); } catch(e){}
+  }
+
+  function b64encode(str){
+    var bytes = new TextEncoder().encode(str), bin = "";
+    for(var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  function b64decode(b64){
+    var bin = atob(String(b64).replace(/\s/g, "")), bytes = new Uint8Array(bin.length);
+    for(var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+  function clock(){
+    var d = new Date();
+    return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+  }
+
+  function githubAdapter(cfg){
+    var api = "https://api.github.com/repos/" + cfg.repo + "/contents/" +
+              cfg.path.split("/").map(encodeURIComponent).join("/");
+    var sha = null;
+    var state = {nextNr:1, cars:{}};
+    var listener = null, writing = false, dirty = false, timer = null;
+    var touched = new Set(), removed = new Set();
+
+    function headers(extra){
+      var h = {
+        "Accept":"application/vnd.github+json",
+        "Authorization":"Bearer " + cfg.token,
+        "X-GitHub-Api-Version":"2022-11-28"
+      };
+      if(extra) Object.keys(extra).forEach(function(k){ h[k] = extra[k]; });
+      return h;
+    }
+    function fail(r){
+      if(r.status === 401) return "Token ungültig oder abgelaufen";
+      if(r.status === 403) return "Token hat keine Schreibrechte auf dieses Repository";
+      if(r.status === 404) return "Repository oder Branch nicht gefunden";
+      return "GitHub meldet HTTP " + r.status;
+    }
+    function pull(){
+      return fetch(api + "?ref=" + encodeURIComponent(cfg.branch) + "&_=" + Date.now(),
+                   {headers:headers(), cache:"no-store"})
+        .then(function(r){
+          if(r.status === 404){ sha = null; return {nextNr:1, cars:{}}; }
+          if(!r.ok) throw new Error(fail(r));
+          return r.json().then(function(j){
+            sha = j.sha;
+            var raw = j.content ? b64decode(j.content).trim() : "";
+            var parsed = raw ? JSON.parse(raw) : {};
+            return {nextNr: parsed.nextNr || 1, cars: parsed.cars || {}};
+          });
+        });
+    }
+    function emit(){
+      if(!listener) return;
+      listener(Object.keys(state.cars).sort().map(function(id){
+        return {id:id, data:state.cars[id]};
+      }));
+    }
+    function synced(){ setSave("sync", "Gemeinsame Liste · Stand " + clock()); }
+
+    function push(){
+      if(writing){ dirty = true; return; }
+      writing = true; dirty = false;
+      setSave("saving", "Wird gespeichert …");
+      var payload = {
+        message: "Konvoi aktualisiert",
+        content: b64encode(JSON.stringify({nextNr:state.nextNr, cars:state.cars}, null, 1)),
+        branch: cfg.branch
+      };
+      if(sha) payload.sha = sha;
+      return fetch(api, {method:"PUT", headers:headers({"Content-Type":"application/json"}),
+                         body:JSON.stringify(payload)})
+        .then(function(r){
+          if(r.status === 409 || r.status === 422) return merge();
+          if(!r.ok) throw new Error(fail(r));
+          return r.json().then(function(j){
+            sha = j.content && j.content.sha;
+            touched.clear(); removed.clear(); synced();
+          });
+        })
+        .catch(function(e){ setSave("local", "Nicht gespeichert: " + e.message); })
+        .then(function(){ writing = false; if(dirty) push(); });
+    }
+
+    // Gleichzeitige Änderung: fremden Stand holen, eigene Karten darüberlegen.
+    function merge(){
+      return pull().then(function(remote){
+        var cars = remote.cars;
+        touched.forEach(function(id){ if(state.cars[id]) cars[id] = state.cars[id]; });
+        removed.forEach(function(id){ delete cars[id]; });
+        state.cars = cars;
+        state.nextNr = Math.max(remote.nextNr || 1, state.nextNr || 1);
+        emit();
+        dirty = true;
+      });
+    }
+
+    function schedule(){
+      if(timer) clearTimeout(timer);
+      setSave("saving", "Wird gespeichert …");
+      timer = setTimeout(function(){ timer = null; push(); }, 1200);
+    }
+
+    function poll(){
+      if(writing || dirty || timer || touched.size || removed.size) return;
+      pull().then(function(remote){
+        state.nextNr = Math.max(state.nextNr || 1, remote.nextNr || 1);
+        state.cars = remote.cars;
+        emit(); synced();
+      }).catch(function(e){ setSave("local", "Kein Abgleich: " + e.message); });
+    }
+
+    return {
+      kind:"github",
+      subscribe:function(fn){
+        listener = fn;
+        setSave("saving", "Liste wird geladen …");
+        pull().then(function(remote){
+          state = remote; emit(); synced();
+        }).catch(function(e){
+          setSave("local", "Verbindung fehlgeschlagen: " + e.message);
+          bootstrapped = true;   // ohne gültige Verbindung kein leeres Auto anlegen
+          openCfg(e.message);
+          emit();
+        });
+        setInterval(poll, 12000);
+        document.addEventListener("visibilitychange", function(){
+          if(!document.hidden) poll();
+        });
+        window.addEventListener("focus", poll);
+      },
+      save:function(id, d){ state.cars[id] = d; touched.add(id); removed.delete(id); schedule(); return Promise.resolve(); },
+      remove:function(id){ delete state.cars[id]; removed.add(id); touched.delete(id); schedule(); return Promise.resolve(); },
+      nextNr:function(){
+        var n = state.nextNr || 1;
+        Object.keys(state.cars).forEach(function(id){ n = Math.max(n, num(id) + 1); });
+        state.nextNr = n + 1;
+        return Promise.resolve(n);
+      },
+      afterCreate:function(){}
+    };
+  }
+
   function dbAdapter(db){
     var meta = db.doc("meta/state");
     return {
@@ -385,6 +580,7 @@ textarea{
       var d = model.get(id);
       if(!d || !store) return;
       Promise.resolve(store.save(id, d)).then(function(){
+        if(store.kind === "github") return;   // meldet seinen Stand selbst
         if(pending.size === 0) setSave(store.kind === "local" ? "local" : "idle",
           store.kind === "local" ? "Auf diesem Gerät gespeichert" : "Alle Änderungen gespeichert");
       }, function(err){
@@ -734,21 +930,60 @@ textarea{
     return Promise.resolve(null);
   }
 
-  setSave("saving","Lade …");
-  claudeUse("db").then(function(db){
-    if(db){
-      store = dbAdapter(db);
-      setSave("idle","Gespeichert — auf allen Geräten");
+  var syncDlg = $("#syncDlg");
+  function openCfg(error){
+    var c = readCfg() || {};
+    $("#cfgRepo").value = c.repo || "";
+    $("#cfgPath").value = c.path || "konvoi.json";
+    $("#cfgBranch").value = c.branch || "main";
+    $("#cfgToken").value = c.token || "";
+    $("#cfgError").hidden = !error;
+    $("#cfgError").textContent = error || "";
+    $("#cfgForget").hidden = !readCfg();
+    if(typeof syncDlg.showModal === "function" && !syncDlg.open) syncDlg.showModal();
+  }
+  $("#syncBtn").addEventListener("click", function(){ openCfg(""); });
+  $("#cfgCancel").addEventListener("click", function(){ syncDlg.close(); });
+  $("#cfgSave").addEventListener("click", function(){
+    var repo = $("#cfgRepo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\.git$/,"").replace(/\/$/,"");
+    var token = $("#cfgToken").value.trim();
+    if(!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token){
+      $("#cfgError").hidden = false;
+      $("#cfgError").textContent = "Repository im Format benutzername/repo-name und Token sind nötig.";
+      return;
+    }
+    writeCfg({repo:repo, path:($("#cfgPath").value.trim() || "konvoi.json"),
+              branch:($("#cfgBranch").value.trim() || "main"), token:token});
+    location.reload();
+  });
+  $("#cfgForget").addEventListener("click", function(){
+    writeCfg(null);
+    location.reload();
+  });
+
+  function startLocalOrGithub(){
+    $("#syncBtn").hidden = false;
+    var cfg = readCfg();
+    if(cfg){
+      $("#syncBtn").textContent = "Gemeinsame Liste ✓";
+      store = githubAdapter(cfg);
     } else {
       store = localAdapter();
       setSave("local","Auf diesem Gerät gespeichert");
     }
     store.subscribe(applyList);
-  }, function(){
-    store = localAdapter();
-    setSave("local","Auf diesem Gerät gespeichert");
-    store.subscribe(applyList);
-  });
+  }
+
+  setSave("saving","Lade …");
+  claudeUse("db").then(function(db){
+    if(db){
+      store = dbAdapter(db);
+      setSave("idle","Gespeichert — auf allen Geräten");
+      store.subscribe(applyList);
+    } else {
+      startLocalOrGithub();
+    }
+  }, startLocalOrGithub);
 })();
 </script>
 </body>
